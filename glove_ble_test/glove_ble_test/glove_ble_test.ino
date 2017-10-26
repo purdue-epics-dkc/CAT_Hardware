@@ -35,50 +35,68 @@
 
 #include <Wire.h>
 
+#define OFFSET 201
+
+word data;
+byte add;
+
 // System initialization
 void setup() {
+
+  data = 0;
+  add = 1;
   
   // Set up UART connection.
-  Serial.begin(9600);  // UART
-  // Wait to establish connection.
-  while (!Serial) { } 
+  Serial.begin(9600);  // The Serial monitor
+  Serial1.begin(115200); // The Bluesmirf 
+  
+  Serial1.print("$$$");  // Enter command mode
+  delay(100);  
+  Serial1.println("U,9600,N");  // Temporarily Change the baud rate to 9600, no parity 
+  delay(100);
+  Serial1.begin(9600);
+  Serial1.println("r,1");  // Exit command mode and reboot.
 }
 
 // Main execution logic
 // Send out 8 words total on the UART to the bluetooth.
 void loop() {
- 
+
+  char input;
   byte finger_id = 0;  
-  word data = 0;
-  
-  while (data < 0xfff) {
-    // Transmit the data for each finger.
-    for (finger_id=0; finger_id < 5; finger_id++) {
-      // Send out the packet
-      send_word(data | (finger_id << 12));
+  if (Serial1.available() > 0) {
+    input = (char)Serial1.read();
+    Serial.println(input);
+    if (input == 'S') {
+      Serial.print("data: ");
+      Serial.println(data, HEX);
+      for (finger_id=0; finger_id < 5; finger_id++) {
+        // Send out the packet
+        send_word(data | (finger_id << 12));
+        // Wait ? ms for transmission. Arbitrary length.
+        delay(50); 
+      }
 
-      // Wait 50 ms for transmission. Arbitrary length.
-      delay(50); 
+      if (data >= (0xFFF - OFFSET)) {
+        add = 0;
+      } else if (data <= OFFSET) {
+        add = 1;
+      }
+      data = add ? data + OFFSET : data - OFFSET;
     }
-    data += 5;
   }
-  // Wait 2 seconds before changing direction.
-  delay(2000);
-
-  // Send it back the other way.
-  while (data > 0) {
-    for (finger_id=0; finger_id < 5; finger_id++) {
-      send_word(data | (finger_id << 12));
-      delay(50);
-    }
-    data -= 5;
-  }
-  delay(2000);
 }
 
 // Take a word and send out MSB then LSB on UART
 void send_word(word data) {
-  Serial.write(byte(data >> 8)); // MSB
-  Serial.write(byte(data & 0xFF)); // LSB
+  //Serial1.print((char)data >> 8);
+  if ((char)data == '$') {
+    data += 1;
+  }
+  Serial1.write(data & 0xff);
+  Serial1.write(data >> 8);
+  
+  //Serial1.println();
+  //Serial1.println(byte(data & 0xFF)); // LSB
 }
 
