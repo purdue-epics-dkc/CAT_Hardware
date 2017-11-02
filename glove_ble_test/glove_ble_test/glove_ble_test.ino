@@ -16,6 +16,10 @@
  * Finger ID numbers should correspond to the input port 
  * numbers on the FDC2114 chips this way:
  * 
+ * As an added feature to test how the Flora handles UART
+ * reads, it keeps incrementing fingers with a delay until
+ * it recieves a send request, then it sends it.
+ * 
  * FDC2114 #1
  *  IN0X:  0
  *  IN1X:  1
@@ -36,14 +40,18 @@
 #include <Wire.h>
 
 #define OFFSET 201
+#define NUM_FINGERS 5
 
-word data;
+word data[NUM_FINGERS];
 byte add;
 
 // System initialization
 void setup() {
 
-  data = 0;
+  int i;
+  for (i=0; i<NUM_FINGERS; i++) {
+    data[i] = 0;
+  }
   add = 1;
   
   // Set up UART connection.
@@ -64,25 +72,34 @@ void loop() {
 
   char input;
   byte finger_id = 0;  
+
+  if (data[0] >= (0xFFF - OFFSET)) {
+    add = 0;
+  } else if (data[0] <= OFFSET) {
+    add = 1;
+  }
+
+  for (finger_id=0; finger_id<NUM_FINGERS; finger_id++) {
+    data[finger_id] = add ? data[finger_id] + OFFSET : data[finger_id] - OFFSET;
+  }
+
+  delay(1000);
+  
   if (Serial1.available() > 0) {
     input = (char)Serial1.read();
     Serial.println(input);
     if (input == 'S') {
       Serial.print("data: ");
-      Serial.println(data, HEX);
-      for (finger_id=0; finger_id < 5; finger_id++) {
+      Serial.println(data[0], HEX);
+      for (finger_id=0; finger_id < NUM_FINGERS; finger_id++) {
         // Send out the packet
-        send_word(data | (finger_id << 12));
+        send_word(data[finger_id] | (finger_id << 12));
         // Wait ? ms for transmission. Arbitrary length.
-        delay(50); 
+        //delay(50); 
       }
+      Serial.println("");
 
-      if (data >= (0xFFF - OFFSET)) {
-        add = 0;
-      } else if (data <= OFFSET) {
-        add = 1;
-      }
-      data = add ? data + OFFSET : data - OFFSET;
+      
     }
   }
 }
