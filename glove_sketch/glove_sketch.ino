@@ -2,40 +2,63 @@
 
 #define NUM_CHIPS 2
 #define NUM_REG_PER_CHIP 4
-#define NUM_SENSORS 8
+#define NUM_SENSORS 5
 
 const byte device_addr[NUM_CHIPS] = {0x2A, 0x2B};
 const byte reg[NUM_REG_PER_CHIP] = {0x00, 0x02, 0x04, 0x06};
 
-word data[NUM_SENSORS] = {0, 0, 0, 0, 0, 0, 0, 0};
+word data[NUM_SENSORS] = {0, 0, 0, 0, 0};
 
 void setup() {
   // Set up i2c bus and UART connection.
   Wire.begin();
-  Serial.begin(9600);
-  while (!Serial) {
-    // establish connection.
-  }
+  Serial.begin(9600);  // The Serial monitor
+  Serial1.begin(115200); // The Bluesmirf 
+  
+  Serial1.print("$$$");  // Enter command mode
+  delay(100);  
+  Serial1.println("U,9600,N");  // Temporarily Change the baud rate to 9600, no parity 
+  delay(100);
+  Serial1.begin(9600);
+  Serial1.println("r,1");  // Exit command mode and reboot.
 }
 
 void loop() {
   // Read each sensor on each chip.
-  byte i, j, cnt = 0;
+  byte i, j, limit, input, finger_id = 0;
   for (i=0; i<NUM_CHIPS; i++) {
-    for (j=0; j<NUM_REG_PER_CHIP; j++) {
-      data[cnt] = read_request(device_addr[i], reg[j]);
+    if (i == 0) {
+      limit = 3;
+    } else {
+      limit = 2;
+    }
+    for (j=0; j<limit; j++) {
+      data[finger_id] = read_request(device_addr[i], reg[j]);
+      finger_id += 1;
     }
   }
 
-  // Send out 8 words on the UART to the bluetooth.
-  for (i=0; i<NUM_SENSORS; i++) {
-    send_data(data[i]);
+  if (Serial1.available() > 0) {
+    input = (char)Serial1.read();
+    Serial.println(input);
+    if (input == 'S') {
+      Serial.print("data: ");
+      Serial.println(data[0], HEX);
+      for (finger_id=0; finger_id < NUM_SENSORS; finger_id++) {
+        // Send out the packet
+        send_data(data[finger_id] | (finger_id << 12));
+      }
+      Serial.println("");
+    }
+  } else {
+    // delay so there is more time without I2C reads to get a UART read.
+    delay(500);
   }
   
 }
 
 // Read sensor data from a specific device on the i2c bus.
-word read_request(byte rr_device_addr, byte rr_reg) {
+word read_request(uint8_t rr_device_addr, byte rr_reg) {
   byte rr_temp[2] = {0, 0};
   byte rr_cnt = 0;
 
@@ -43,7 +66,7 @@ word read_request(byte rr_device_addr, byte rr_reg) {
   // FDC2114 sends MSB then LSB
   Wire.beginTransmission(rr_device_addr);
   Wire.write(rr_reg);
-  Wire.requestFrom(rr_device_addr, 2);
+  Wire.requestFrom(rr_device_addr, (uint8_t)2);
 
   // Read two bytes.
   while (Wire.available()) {
@@ -59,7 +82,11 @@ word read_request(byte rr_device_addr, byte rr_reg) {
 
 // Take a word and send out MSB then LSB on UART
 void send_data(word data_word) {
-  Serial.write(data_word >> 8); // MSB
-  Serial.write(data_word & 0xFF); // LSB
+  // Sending "$$$" puts the Bluesmirf into command mode. Don't do that.
+  if ((char)data == '$') {
+    data_word += 1;
+  }
+  Serial1.write(data_word & 0xff);
+  Serial1.write(data_word >> 8);
 }
 
