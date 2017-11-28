@@ -59,19 +59,23 @@ void setup() {
   Serial.begin(9600);
 
   // Set up the UART connection
-  Serial1.begin(115200); // The Bluesmirf 
-  Serial1.print("$$$");  // Enter command mode
+  Serial1.begin(115200);
+  // Enter command mode
+  Serial1.print("$$$");  
   delay(100);  
-  Serial1.println("U,9600,N");  // Temporarily change the baud rate to 9600, no parity 
+  // Temporarily change the baud rate to 9600, no parity 
+  Serial1.println("U,9600,N");  
   delay(100);
   Serial1.begin(9600);
-  Serial1.println("r,1");  // Exit command mode and reboot.
+  // Exit command mode and reboot.
+  Serial1.println("r,1"); 
 }
 
 void loop() {
   // Read each sensor on each chip.
   byte i, j, limit, input, finger_id = 0;
   for (i=0; i<NUM_CHIPS; i++) {
+    // Read 3 sensors of chip 0, 2 sensors on chip 1.
     if (i == 0) {
       limit = NUM_OUTPUTS_CHIP_1;
     } else {
@@ -83,6 +87,7 @@ void loop() {
     }
   }
 
+  // Check for a data frame request from the Bluetooth modem.
   if (Serial1.available() > 0) {
     input = (char)Serial1.read();
     Serial.println(input);
@@ -96,7 +101,7 @@ void loop() {
       Serial.println("");
     }
   } else {
-    // delay so there is more time without I2C reads to get a UART read.
+    // Delay so there is more time without I2C reads to get a UART read.
     delay(500);
   }
   
@@ -112,13 +117,13 @@ word read_request(uint8_t rr_device_addr, byte rr_reg) {
   Wire.beginTransmission(rr_device_addr);
   Wire.write(rr_reg);
   Wire.requestFrom(rr_device_addr, (uint8_t)2);
+  Wire.endTransmission();
 
   // Read two bytes.
   while (Wire.available()) {
     rr_temp[rr_cnt] = Wire.read();
     rr_cnt++;
   }
-  Wire.endTransmission();
 
   // Concatonate into raw data word.
   byte rr_res = (rr_temp[0] << 8) | (rr_temp[1]);
