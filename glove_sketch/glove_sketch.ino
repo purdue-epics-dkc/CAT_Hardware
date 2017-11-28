@@ -60,13 +60,16 @@ void setup() {
   //Serial.println("Setup!");
 
   // Set up the UART connection
-  Serial1.begin(115200); // The Bluesmirf 
-  Serial1.print("$$$");  // Enter command mode
+  Serial1.begin(115200);
+  // Enter command mode
+  Serial1.print("$$$");  
   delay(100);  
-  Serial1.println("U,9600,N");  // Temporarily change the baud rate to 9600, no parity 
+  // Temporarily change the baud rate to 9600, no parity 
+  Serial1.println("U,9600,N");  
   delay(100);
   Serial1.begin(9600);
-  Serial1.println("r,1");  // Exit command mode and reboot.
+  // Exit command mode and reboot.
+  Serial1.println("r,1"); 
 }
 
 void loop() {
@@ -80,6 +83,7 @@ void loop() {
     data[finger_id] = read_request(device_addr[finger_id], reg[finger_id]);
   }
 
+  // Check for a data frame request from the Bluetooth modem.
   if (Serial1.available() > 0) {
     //input = (char)Serial1.read();
     //Serial.println(input);
