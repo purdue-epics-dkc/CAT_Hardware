@@ -40,14 +40,13 @@
 
 #include <Wire.h>
 
-#define NUM_CHIPS 2
-#define NUM_REG_PER_CHIP 4
 #define NUM_SENSORS 5
-#define NUM_OUTPUTS_CHIP_1 3
-#define NUM_OUTPUTS_CHIP_2 2
 
-const byte device_addr[NUM_CHIPS] = {0x2A, 0x2B};
-const byte reg[NUM_REG_PER_CHIP] = {0x00, 0x02, 0x04, 0x06};
+// Map finger_id to device address.
+const byte device_addr[NUM_SENSORS] = {0x2A, 0x2A, 0x2A, 0x2B, 0x2B};
+
+// Map finger_id to register address on the finger's device.
+const byte reg[NUM_SENSORS] = {0x00, 0x02, 0x04, 0x00, 0x02};
 
 word data[NUM_SENSORS] = {0, 0, 0, 0, 0};
 
@@ -57,6 +56,8 @@ void setup() {
 
   // Set up the serial monitor
   Serial.begin(9600);
+
+  //Serial.println("Setup!");
 
   // Set up the UART connection
   Serial1.begin(115200); // The Bluesmirf 
@@ -69,33 +70,30 @@ void setup() {
 }
 
 void loop() {
+  //Serial.println("Top of loop");
+  
   // Read each sensor on each chip.
-  byte i, j, limit, input, finger_id = 0;
-  for (i=0; i<NUM_CHIPS; i++) {
-    if (i == 0) {
-      limit = NUM_OUTPUTS_CHIP_1;
-    } else {
-      limit = NUM_OUTPUTS_CHIP_2;
-    }
-    for (j=0; j<limit; j++) {
-      data[finger_id] = read_request(device_addr[i], reg[j]);
-      finger_id += 1;
-    }
+  byte finger_id, input;
+  for (finger_id=0; finger_id<NUM_SENSORS; finger_id++) {
+    //Serial.print("Reading finger ");
+    //Serial.println(finger_id);
+    data[finger_id] = read_request(device_addr[finger_id], reg[finger_id]);
   }
 
   if (Serial1.available() > 0) {
-    input = (char)Serial1.read();
-    Serial.println(input);
+    //input = (char)Serial1.read();
+    //Serial.println(input);
     if (input == 'S') {
-      Serial.print("data: ");
-      Serial.println(data[0], HEX);
+      //Serial.print("data: ");
+      //Serial.println(data[0], HEX);
       // Send out the packet
       for (finger_id=0; finger_id<NUM_SENSORS; finger_id++) {
-        send_data(data[finger_id] | (finger_id << 12));
+        //send_data(data[finger_id] | (finger_id << 12));
       }
-      Serial.println("");
+      //Serial.println("");
     }
   } else {
+    //Serial.println("Delaying...");
     // delay so there is more time without I2C reads to get a UART read.
     delay(500);
   }
@@ -103,26 +101,37 @@ void loop() {
 }
 
 // Read sensor data from a specific device on the i2c bus.
-word read_request(uint8_t rr_device_addr, byte rr_reg) {
-  byte rr_temp[2] = {0, 0};
-  byte rr_cnt = 0;
+word read_request(uint8_t rr_device_addr, byte rr_reg) {  
+  //byte rr_temp[2] = {0, 0};
+  //byte rr_cnt = 0;
+
+  //Serial.print(" dev: ");
+  //Serial.println(rr_device_addr, HEX);
+  //Serial.print(" reg: ");
+  //Serial.println(rr_reg, HEX);
 
   // Request a 2 byte read at the specified register.
   // FDC2114 sends MSB then LSB
   Wire.beginTransmission(rr_device_addr);
+  //Serial.println("A");
   Wire.write(rr_reg);
-  Wire.requestFrom(rr_device_addr, (uint8_t)2);
+  //Serial.println("B");
+  delay(100);
+  Wire.endTransmission();
+  //Serial.println("C");
+  
+  //Wire.requestFrom(rr_device_addr, (uint8_t)2);
 
   // Read two bytes.
-  while (Wire.available()) {
-    rr_temp[rr_cnt] = Wire.read();
-    rr_cnt++;
-  }
-  Wire.endTransmission();
+  //while (Wire.available()) {
+    //rr_temp[rr_cnt] = Wire.read();
+    //rr_cnt++;
+  //}
 
   // Concatonate into raw data word.
-  byte rr_res = (rr_temp[0] << 8) | (rr_temp[1]);
-  return rr_res;
+  //byte rr_res = (rr_temp[0] << 8) | (rr_temp[1]);
+  //return rr_res;
+  return 0;
 }
 
 // Take a word and send out MSB then LSB on UART
