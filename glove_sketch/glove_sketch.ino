@@ -73,7 +73,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Top of loop");
+  //Serial.println("Top of loop");
   
   // Read each sensor on each chip.
   byte finger_id, input;
@@ -85,19 +85,19 @@ void loop() {
 
   // Check for a data frame request from the Bluetooth modem.
   if (Serial1.available() > 0) {
-    input = (char)Serial1.read();
+    //input = (char)Serial1.read();
     //Serial.println(input);
     if (input == 'S') {
-      Serial.print("data: ");
-      Serial.println(data[0], HEX);
+      //Serial.print("data: ");
+      //Serial.println(data[0], HEX);
       // Send out the packet
       for (finger_id=0; finger_id<NUM_SENSORS; finger_id++) {
-        send_data(data[finger_id] | (finger_id << 12));
+        //send_data(data[finger_id] | (finger_id << 12));
       }
-      Serial.println("");
+      //Serial.println("");
     }
   } else {
-    Serial.println("Delaying...");
+    //Serial.println("Delaying...");
     // delay so there is more time without I2C reads to get a UART read.
     delay(500);
   }
@@ -106,8 +106,8 @@ void loop() {
 
 // Read sensor data from a specific device on the i2c bus.
 word read_request(uint8_t rr_device_addr, byte rr_reg) {  
-  byte rr_temp[2] = {0, 0};
-  byte rr_cnt = 0;
+  //byte rr_temp[2] = {0, 0};
+  //byte rr_cnt = 0;
 
   //Serial.print(" dev: ");
   //Serial.println(rr_device_addr, HEX);
@@ -117,21 +117,25 @@ word read_request(uint8_t rr_device_addr, byte rr_reg) {
   // Request a 2 byte read at the specified register.
   // FDC2114 sends MSB then LSB
   Wire.beginTransmission(rr_device_addr);
+  //Serial.println("A");
   Wire.write(rr_reg);
+  //Serial.println("B");
   delay(100);
   Wire.endTransmission();
+  //Serial.println("C");
   
-  Wire.requestFrom(rr_device_addr, (uint8_t)2);
+  //Wire.requestFrom(rr_device_addr, (uint8_t)2);
 
   // Read two bytes.
-  while (Wire.available()) {
-    rr_temp[rr_cnt] = Wire.read();
-    rr_cnt++;
-  }
+  //while (Wire.available()) {
+    //rr_temp[rr_cnt] = Wire.read();
+    //rr_cnt++;
+  //}
 
   // Concatonate into raw data word.
-  byte rr_res = (rr_temp[0] << 8) | (rr_temp[1]);
-  return rr_res;
+  //byte rr_res = (rr_temp[0] << 8) | (rr_temp[1]);
+  //return rr_res;
+  return 0;
 }
 
 // Take a word and send out MSB then LSB on UART
