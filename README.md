@@ -8,12 +8,14 @@ Hardware code for the sensor/Bluetooth assembly for EPICS DKC CAT.
 
 * Summary of set up
 	* Meant to be run through the Arduino IDE 1.6.4 or higher.
-	* glove_sketch.ino is the main file. It executes I2C reads from the finger sensors and outputs data packets on request over the UART bus to the Bluetooth modem.
-	* glove_ble_test.ino is a debugging file that does not implement the I2C functionality, but instead outputs arbitrary data over the Bluetooth connection.
+	* Current development is for the Adafruit Feather nRF52 Bluefruit and is located in feather/.
+	* Deprecated development for the old Adafruit Flora is located in flora/.
+	* For the Flora, glove_sketch.ino is the main file. It executes I2C reads from the finger sensors and outputs data packets on request over the UART bus to the Bluetooth modem.
 	* The other source files are proof of concept tests for other submodules.
 * Configuration
 	* Adafruit drivers required.
 	* [Installation instructions](https://learn.adafruit.com/adafruit-arduino-ide-setup/arduino-1-dot-6-x-ide)
 * Dependencies
-	* Adafruit Flora driver.
+	* Adafruit Feather/Flora drivers.
+	* Feather code depends on [SiLabs CP201X Driver](https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/arduino-board-setup).
 
