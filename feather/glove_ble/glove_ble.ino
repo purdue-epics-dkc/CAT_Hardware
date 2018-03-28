@@ -66,10 +66,13 @@
 
 #include <Wire.h>
 #include <bluefruit.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
 
 // Use these define statements to easily reconfigure the code
 // to test individual hardware components.
-//#define USE_BLE       // Output data using the Feather's BLE modem.
+#define USE_BLE       // Output data using the Feather's BLE modem.
 #define USE_CR        // Read flex sensors from the capacitive reader board.
 //#define USE_IMU       // Read position data from the BNO055.
 //#define USE_TOUCH     // Read finger contact data from the touch sensor board.
@@ -111,7 +114,7 @@
 #endif // USE_CR
 
 // Store data.
-word data[NUM_SENSORS] = {0, 0, 0, 0, 0};
+uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 #ifdef USE_BLE
   // Make the glove service.
@@ -202,15 +205,17 @@ void setup() {
 
   void setupDS() {
     moCapGlove.begin();
-  
-    // Finger flex data characteristic.
-    // Set to read only status from the perspective of the phone.
-    // Notify the phone to read when updated.
-    rightHand.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
-    rightHand.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-    rightHand.setFixedLen(DATA_LEN);
-    rightHand.setUserDescriptor("right hand");
-    rightHand.begin();
+
+    #ifdef USE_CR
+      // Finger flex data characteristic.
+      // Set to read only status from the perspective of the phone.
+      // Notify the phone to read when updated.
+      rightHand.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
+      rightHand.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+      rightHand.setFixedLen(DATA_LEN);
+      rightHand.setUserDescriptor("right hand");
+      rightHand.begin();
+    #endif // USE_CR
   
     // Data recording enable flag characteristic.
     // Starts unset, phone can set it to begin data flow
@@ -258,11 +263,12 @@ void loop() {
         #endif //USE_BLE
         
         // Read each flex sensor on each chip.
-        byte finger_id;
-        for (finger_id=0; finger_id<NUM_SENSORS; finger_id++) {
-          data[finger_id] = read_request(device_addr[finger_id], reg[finger_id]);
+        byte finger_id, i;
+        for (finger_id=0, i=0; finger_id<NUM_SENSORS; finger_id++, i+=2) {
+          read_request(device_addr[finger_id], reg[finger_id], i);
           #ifndef USE_BLE
-            Serial.print(data[finger_id]);
+            Serial.print(data[i], HEX);
+            Serial.print(data[i+1], HEX);
             Serial.print(" ");
           #endif // USE_BLE
         }
@@ -272,18 +278,17 @@ void loop() {
       #endif // USE_CR
       
       #ifdef USE_BLE
-      // Write the new flex frame to the characteristic and notify phone.
-      rightHand.notify((uint8_t *)data, DATA_LEN);
+      #ifdef USE_CR
+        // Write the new flex frame to the characteristic and notify phone.
+        rightHand.notify((uint8_t *)data, DATA_LEN);
+      #endif // USE_CR
     } 
     #endif // USE_BLE
   }
 }
 
 // Read sensor data from a specific device on the i2c bus.
-word read_request(uint8_t rr_device_addr, byte rr_reg) {  
-  byte rr_temp[2] = {0xBA, 0xD1};
-  byte rr_cnt = 0;
-
+void read_request(uint8_t rr_device_addr, byte rr_reg, byte index) {  
   // Request a 2 byte read at the specified register.
   // FDC2114 sends MSB then LSB
 
@@ -295,13 +300,9 @@ word read_request(uint8_t rr_device_addr, byte rr_reg) {
   // Read two bytes.
   Wire.requestFrom(rr_device_addr, 2);
   while (Wire.available()) {
-    rr_temp[rr_cnt] = Wire.read();
-    rr_cnt++;
+    data[index] = Wire.read();
+    index++;
   }
-
-  // Concatenate into raw data word.
-  byte rr_res = (rr_temp[0] << 8) | (rr_temp[1]);
-  return rr_res;
 }
 
 // Set a configuration register in one of the FDC2114 chips.
