@@ -4,9 +4,9 @@
  * Written for EPICS DKC CAT Spring 2018
  * This program establishes a BLE 5.0 service that delivers
  * glove data to the phone. Currently implements reading of
- * FDC2114 chips.
+ * FDC2114 chips and IMU data.
  * 
- * Serivce:
+ * BLE Serivce:
  *  Name: DeafSigner
  *  UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd47
  *  
@@ -23,21 +23,40 @@
  *    fixed len: 10
  *    data: 5 2-byte words in finger ID order (see bellow)
  *          written MSB first.
+ *          
+ *  Characteristic: Orientation
+ *    - Four Point Quaterion
+ *    UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd4a
+ *    fixed len: 
+ *    data: 
+ *  
+ *  Characteristic: AngularVelocity
+ *    - Three axis rotation speed (rad/s)
+ *    UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd4b
+ *    fixed len: 
+ *    data: 
+ *  
+ *  Characteristic: LinearAcceleration
+ *    - Compensated for gravity. (m/s^2)
+ *    UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd4c
+ *    fixed len: 
+ *    data: 
  * 
+ * Flex sensors:
  * Finger ID numbers should correspond to the input port 
  * numbers on the FDC2114 chips this way:
  * 
  * FDC2114 #1 (0x2A)
- *  port |id |addr| finger
- *  IN0X:  0 (0x0)  Thumb
- *  IN1X:  1 (0x2)  Pointer
- *  IN2X:  2 (0x4)  Middle
+ *  port | ID|addr| finger
+ *  IN0X:   0 (0x0) Thumb
+ *  IN1X:   1 (0x2) Pointer
+ *  IN2X:   2 (0x4) Middle
  *  IN3X:  
  *  
  * FDC2114 #2 (0x2B)
- *  port |id |addr| finger
- *  IN0X1: 3 (0x0)  Ring
- *  IN1X1: 4 (0x2)  Pinky
+ *  port | ID|addr| finger
+ *  IN0X1:  3 (0x0) Ring
+ *  IN1X1:  4 (0x2) Pinky
  *  IN2X1: 
  *  IN3x1: 
  *  
