@@ -10,6 +10,13 @@
  *  Name: DeafSigner
  *  UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd47
  *  
+ *  Characteristic: dataEnable
+ *    - Phone sets to start recording data, unsets to end.
+ *    UUID128: 656cb831-83b0-4304-b0ce-dc4e192e6179
+ *    fixed len: 1
+ *    data: if 0, don't send data. Else send data. Only set by
+ *          phone except for initialization.
+ *  
  *  Characteristic: RightHand
  *    - Has the flex data for 5 fingers fo the right hand.
  *    UUID128: 0bed7cea-5a41-4039-a1cc-70b942731b0f
@@ -41,6 +48,13 @@
 #include <Wire.h>
 #include <bluefruit.h>
 
+// Use these define statements to easily reconfigure the code
+// to test individual hardware components.
+//#define USE_BLE       // Output data using the Feather's BLE modem.
+#define USE_CR        // Read flex sensors from the capacitive reader board.
+//#define USE_IMU       // Read position data from the BNO055.
+//#define USE_TOUCH     // Read finger contact data from the touch sensor board.
+
 // Number of words in the main data array.
 #define NUM_SENSORS 5
 
@@ -51,35 +65,49 @@
 // Period of data refresh in ms.
 #define PERIOD 10
 
-// Custom UUID: byte order is little endian.
-const uint8_t DSUUID[] = {0x47, 0xfd, 0x29, 0xec, 
-                          0x22, 0xf0, 0x47, 0xb6,
-                          0x10, 0x42, 0xcd, 0xe2,
-                          0xd2, 0x0c, 0x20, 0x09};
+#ifdef USE_BLE
+  // Custom UUID: byte order is little endian.
+  uint8_t const DSUUID[] = {0x47, 0xfd, 0x29, 0xec, 
+                            0x22, 0xf0, 0x47, 0xb6,
+                            0x10, 0x42, 0xcd, 0xe2,
+                            0xd2, 0x0c, 0x20, 0x09};
+  
+  uint8_t const RHUUID[] = {0x0f, 0x1b, 0x73, 0x42,
+                            0xb9, 0x70, 0xcc, 0xa1,
+                            0x39, 0x40, 0x41, 0x5a,
+                            0xea, 0x7c, 0xed, 0x0b};
+  
+  uint8_t const ENUUID[] = {0x79, 0x61, 0x2e, 0x19,
+                            0x4e, 0xdc, 0xce, 0xb0,
+                            0x04, 0x43, 0xb0, 0x83,
+                            0x31, 0xb8, 0x6c, 0x65};
+#endif // USE_BLE
 
-const uint8_t RHUUID[] = {0x0f, 0x1b, 0x73, 0x42,
-                          0xb9, 0x70, 0xcc, 0xa1,
-                          0x39, 0x40, 0x41, 0x5a,
-                          0xea, 0x7c, 0xed, 0x0b};
-
-// Map finger_id to device address.
-const byte device_addr[NUM_SENSORS] = {0x2A, 0x2A, 0x2A, 0x2B, 0x2B};
-
-// Map finger_id to register address on the finger's device.
-const byte reg[NUM_SENSORS] = {0x00, 0x02, 0x04, 0x00, 0x02};
+#ifdef USE_CR
+  // Map finger_id to device address.
+  const byte device_addr[NUM_SENSORS] = {0x2A, 0x2A, 0x2A, 0x2B, 0x2B};
+  
+  // Map finger_id to register address on the finger's device.
+  const byte reg[NUM_SENSORS] = {0x00, 0x02, 0x04, 0x00, 0x02};
+#endif // USE_CR
 
 // Store data.
 word data[NUM_SENSORS] = {0, 0, 0, 0, 0};
 
-// Make the glove service.
-BLEService moCapGlove(DSUUID);
-BLECharacteristic rightHand(RHUUID);
+#ifdef USE_BLE
+  // Make the glove service.
+  BLEService moCapGlove(DSUUID);
+  #ifdef USE_CR
+    BLECharacteristic rightHand(RHUUID);
+  #endif
+  BLECharacteristic dataEnable(ENUUID);
+
+  // Enable state set by the phone.
+  uint8_t enableState;
+#endif // USE_BLE
 
 // Handle delay between data frames.
 unsigned long old_time, current_time;
-
-void setupAd();
-void setupDS();
 
 void setup() {
 
@@ -89,86 +117,146 @@ void setup() {
 
   // Turn on serial monitor.
   Serial.begin(115200);
-  
-  // Reset the FDC2114
-  // See documentation here: http://www.ti.com/product/FDC2114/technicaldocuments
-  // Toggle shutdown mode to reset errors.
-  digitalWrite(16, HIGH);
-  delay(1);
-  digitalWrite(16, LOW);
-  delay(1);
 
-  // Set the DRDY_2INT bit in the STATUS_CONFIG register 0x19.
-  // 0x1 should preserve other bits. May not be needed.
-  configure(0x2B, 0x19, 0, 1);
+  #ifdef USE_CR
+    // Configure capacitive reader board with FDC2114 chips.
+    setupCR();
+  #endif // USE_CR
 
-  // Set the MUX_CONFIG register to ready all channels.
-  // Write 0xc20f to 0x1B. Turns on autoscan, selects correct channels.
-  configure(0x2B, 0x1B, 0xc2, 0xf);
+  #ifdef USE_BLE
+    // Set up the BLE service.
+    Bluefruit.begin();
+    //DEBUG Set to a slightly lower power setting. Need to check battery
+    // usage and compatibility with phones.
+    Bluefruit.setTxPower(-4);
+    
+    Bluefruit.setName("DSRight");
+    setupDS();
   
-  // Write 0b0 to the sleep mode enable register to exit power on sleep mode.
-  // Configure any status registers before exiting sleep mode.
-  // Writing 0x1c01 should preserve the other default values in that register (?).
-  configure(0x2B, 0x1A, 0x1C, 0x1);
-  
-  // Set up the BLE service.
-  setupDS();
-
-  // Set up the advertising profile.
-  setupAd();
+    // Set up the advertising profile.
+    setupAd();
+  #endif // USE_BLE
 
   // Initialize the timer.
   old_time = millis();
 }
 
-void setupAd() {
-  Bluefruit.begin();
-  //DEBUG Set to a slightly lower power setting. Need to check battery
-  // usage and compatibility with phones.
-  Bluefruit.setTxPower(-4);
+#ifdef USE_CR
+  void setupCR() {
+    // Reset the FDC2114 chips
+    // See documentation here: http://www.ti.com/product/FDC2114/technicaldocuments
+    // Toggle shutdown mode to reset errors.
+    digitalWrite(16, HIGH);
+    delay(1);
+    digitalWrite(16, LOW);
+    delay(1);
   
-  Bluefruit.setName("DSRight");
+    // Set the DRDY_2INT bit in the STATUS_CONFIG register 0x19.
+    // 0x1 should preserve other bits. May not be needed.
+    configure(0x2B, 0x19, 0, 1);
   
-  // Start advertising.
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addTxPower();
-  Bluefruit.Advertising.addName();
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244);
-  Bluefruit.Advertising.setFastTimeout(30);
+    // Set the MUX_CONFIG register to ready all channels.
+    // Write 0xc20f to 0x1B. Turns on autoscan, selects correct channels.
+    configure(0x2B, 0x1B, 0xc2, 0xf);
+    
+    // Write 0b0 to the sleep mode enable register to exit power on sleep mode.
+    // Configure any status registers before exiting sleep mode.
+    // Writing 0x1c01 should preserve the other default values in that register (?).
+    configure(0x2B, 0x1A, 0x1C, 0x1);
+  }
+#endif // USE_CR
 
-  Bluefruit.Advertising.addService(moCapGlove);
+#ifdef USE_BLE  
+  void setupAd() {  
+    // Start advertising.
+    Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+    Bluefruit.Advertising.addTxPower();
+    Bluefruit.Advertising.addName();
+    Bluefruit.Advertising.restartOnDisconnect(true);
+    Bluefruit.Advertising.setInterval(32, 244);
+    Bluefruit.Advertising.setFastTimeout(30);
   
-  Bluefruit.Advertising.start(0); // keep advertising indefinitely.
-}
+    Bluefruit.Advertising.addService(moCapGlove);
+    
+    Bluefruit.Advertising.start(0); // keep advertising indefinitely.
+  }
 
-void setupDS() {
-  moCapGlove.begin();
-
-  // Set to ready only status from the perspective of the phone.
-  rightHand.setProperties(CHR_PROPS_READ);
-  rightHand.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-  rightHand.setFixedLen(DATA_LEN);
-  rightHand.begin();
-}
+  void setupDS() {
+    moCapGlove.begin();
+  
+    // Finger flex data characteristic.
+    // Set to read only status from the perspective of the phone.
+    // Notify the phone to read when updated.
+    rightHand.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
+    rightHand.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+    rightHand.setFixedLen(DATA_LEN);
+    rightHand.setUserDescriptor("right hand");
+    rightHand.begin();
+  
+    // Data recording enable flag characteristic.
+    // Starts unset, phone can set it to begin data flow
+    // and unset it to end.
+    enableState = 0;
+    dataEnable.setProperties(CHR_PROPS_WRITE | CHR_PROPS_NOTIFY);
+    dataEnable.setPermission(SECMODE_OPEN, SECMODE_OPEN);
+    dataEnable.setFixedLen(1);
+    dataEnable.setUserDescriptor("enable");
+    dataEnable.begin();
+  
+    dataEnable.write(0);
+  }
+#endif // USE_BLE
 
 void loop() {
+
+  #ifdef USE_BLE
+    // Check for enable/disable toggle from the phone.
+    if (dataEnable.notifyEnabled()) {
+      enableState = dataEnable.read8();
+    }
+  #endif // USE_BLE
+  
   // Target a refresh rate of 100 Hz.
   current_time = millis();
+  #ifdef USE_BLE
+  if (enableState != 0 && current_time - old_time >= PERIOD) {
+  #else
   if (current_time - old_time >= PERIOD) {
+  #endif // USE_BLE
     old_time = current_time;
     
-    // Check for a connection and pairing.
+    #ifdef USE_BLE
+    // Check for a connection and pairing 
     if (Bluefruit.connected() && Bluefruit.connPaired()) {
-      // Read each sensor on each chip.
-      byte finger_id;
-      for (finger_id=0; finger_id<NUM_SENSORS; finger_id++) {
-        data[finger_id] = read_request(device_addr[finger_id], reg[finger_id]);
-      }
-  
-      // Write the new frame to the characteristic.
-      rightHand.write((uint8_t *)data, DATA_LEN);
+    #endif // USE_BLE
+
+      // Read flex values.
+      #ifdef USE_CR
+
+        // If not using BLE, use Serial output for debugging.
+        #ifndef USE_BLE
+          Serial.print("Flex: ");
+        #endif //USE_BLE
+        
+        // Read each flex sensor on each chip.
+        byte finger_id;
+        for (finger_id=0; finger_id<NUM_SENSORS; finger_id++) {
+          data[finger_id] = read_request(device_addr[finger_id], reg[finger_id]);
+          #ifndef USE_BLE
+            Serial.print(data[finger_id]);
+            Serial.print(" ");
+          #endif // USE_BLE
+        }
+        #ifndef USE_BLE
+          Serial.println("");
+        #endif //USE_BLE
+      #endif // USE_CR
+      
+      #ifdef USE_BLE
+      // Write the new flex frame to the characteristic and notify phone.
+      rightHand.notify((uint8_t *)data, DATA_LEN);
     } 
+    #endif // USE_BLE
   }
 }
 
@@ -197,6 +285,7 @@ word read_request(uint8_t rr_device_addr, byte rr_reg) {
   return rr_res;
 }
 
+// Set a configuration register in one of the FDC2114 chips.
 void configure(byte device, byte reg, byte upper, byte lower) {
   Wire.beginTransmission(device);
   Wire.write(reg);
