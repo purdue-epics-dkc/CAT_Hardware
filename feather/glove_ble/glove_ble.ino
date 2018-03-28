@@ -12,14 +12,14 @@
  *  
  *  Characteristic: dataEnable
  *    - Phone sets to start recording data, unsets to end.
- *    UUID128: 656cb831-83b0-4304-b0ce-dc4e192e6179
+ *    UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd48
  *    fixed len: 1
  *    data: if 0, don't send data. Else send data. Only set by
  *          phone except for initialization.
  *  
  *  Characteristic: RightHand
  *    - Has the flex data for 5 fingers fo the right hand.
- *    UUID128: 0bed7cea-5a41-4039-a1cc-70b942731b0f
+ *    UUID128: 09200cd2-e2cd-4210-b647-f022ec29fd49
  *    fixed len: 10
  *    data: 5 2-byte words in finger ID order (see bellow)
  *          written MSB first.
@@ -72,15 +72,15 @@
                             0x10, 0x42, 0xcd, 0xe2,
                             0xd2, 0x0c, 0x20, 0x09};
   
-  uint8_t const RHUUID[] = {0x0f, 0x1b, 0x73, 0x42,
-                            0xb9, 0x70, 0xcc, 0xa1,
-                            0x39, 0x40, 0x41, 0x5a,
-                            0xea, 0x7c, 0xed, 0x0b};
+  uint8_t const RHUUID[] = {0x48, 0xfd, 0x29, 0xec, 
+                            0x22, 0xf0, 0x47, 0xb6,
+                            0x10, 0x42, 0xcd, 0xe2,
+                            0xd2, 0x0c, 0x20, 0x09};
   
-  uint8_t const ENUUID[] = {0x79, 0x61, 0x2e, 0x19,
-                            0x4e, 0xdc, 0xce, 0xb0,
-                            0x04, 0x43, 0xb0, 0x83,
-                            0x31, 0xb8, 0x6c, 0x65};
+  uint8_t const ENUUID[] = {0x49, 0xfd, 0x29, 0xec, 
+                            0x22, 0xf0, 0x47, 0xb6,
+                            0x10, 0x42, 0xcd, 0xe2,
+                            0xd2, 0x0c, 0x20, 0x09};
 #endif // USE_BLE
 
 #ifdef USE_CR
