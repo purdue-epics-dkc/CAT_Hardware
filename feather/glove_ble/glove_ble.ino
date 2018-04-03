@@ -91,7 +91,7 @@
 // to test individual hardware components.
 #define USE_BLE       // Output data using the Feather's BLE modem.
 #define USE_CR        // Read flex sensors from the capacitive reader board.
-//#define USE_IMU       // Read position data from the BNO055.
+#define USE_IMU       // Read position data from the BNO055.
 //#define USE_TOUCH     // Read finger contact data from the touch sensor board.
 
 // Number of words in the main data array.
@@ -156,7 +156,7 @@ uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 #ifdef USE_IMU
   // Instantiate the sensor object.
-  Adafruit_BNO055 imu = Adafruit_BNO055(55);
+  Adafruit_BNO055 bno = Adafruit_BNO055(55);
 #endif // USE_IMU
 
 #ifdef USE_BLE
@@ -178,6 +178,11 @@ uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Handle delay between data frames.
 unsigned long oldTime, currentTime;
+
+void setupCR();
+void setupDS();
+void setupAd();
+void setupIMU();
 
 void setup() {
 
@@ -315,19 +320,15 @@ void setup() {
     delay(1);
 
     // Start up.
-    imu.begin();
+    bno.begin();
     delay(1000);
-    imu.setExtCrystalUse(true);
+    bno.setExtCrystalUse(true);
 
     //TODO callibrate sensors.
   }
 #endif // USE_BLE
 
 void loop() {
-
-  #ifdef USE_IMU
-    sensors_event_t imuEvent;
-  #endif // USE_IMU
 
   #ifdef USE_BLE
     // Check for enable/disable toggle from the phone.
@@ -375,14 +376,17 @@ void loop() {
 
       #ifdef USE_IMU
         // Read data from the IMU.
-        getEvent(&imuEvent);
+        imu::Quaternion quat = bno.getQuat();
+        imu::Vector<3> angular = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+        imu::Vector<3> linear = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
       #endif // USE_IMU
       
       #ifdef USE_BLE
         #ifdef USE_IMU
-        //TODO add imu data to its services.
-          orientation.write((uint8_t *)&imu.getQuat(), ORIENT_LEN);
-          angularVelocity.write((uint8_t *)&imu.getVector(Adafruit_BNO055::VECTOR_
+          // Write IMU data to characteristics. 
+          orientation.write((uint8_t *)&quat, ORIENT_LEN);
+          angularVelocity.write((uint8_t *)&angular, ANGULAR_LEN);
+          linearAcceleration.write((uint8_t *)&linear, LINEAR_LEN);
         #endif // USE_IMU
       #ifdef USE_CR      
         // Write the new flex frame to the characteristic and notify phone.
