@@ -384,6 +384,7 @@ void loop() {
       #ifdef USE_BLE
         #ifdef USE_IMU
           // Write IMU data to characteristics. 
+          //TODO Use htonl to convert endianness??
           orientation.write((uint8_t *)&quat, ORIENT_LEN);
           angularVelocity.write((uint8_t *)&angular, ANGULAR_LEN);
           linearAcceleration.write((uint8_t *)&linear, LINEAR_LEN);

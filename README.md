@@ -36,20 +36,20 @@
 	* Characteristic: Orientation
 		* Four Point Quaterion
 		* UUID128: 09200cd5-e2cd-4210-b647-f022ec29fd47
-		* fixed len: 
-		* data: 
+		* fixed len: 16
+		* data: 4 4-byte floating point numbers.
 
 	* Characteristic: AngularVelocity
 		* Three axis rotation speed (rad/s)
 		* UUID128: 09200cd6-e2cd-4210-b647-f022ec29fd47
-		* fixed len: 
-		* data: 
+		* fixed len: 12
+		* data: 3 4-byte floating point numbers.
 
 	* Characteristic: LinearAcceleration
 		* Compensated for gravity. (m/s^2)
 		* UUID128: 09200cd7-e2cd-4210-b647-f022ec29fd47
-		* fixed len: 
-		* data: 
+		* fixed len: 12
+		* data: 3 4-byte floating point numbers.
 
 ### Finger Flex Data Format ###
 * Each data frame for one hand is 10 bytes.
