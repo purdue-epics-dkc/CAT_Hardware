@@ -72,26 +72,19 @@
  *        15  SD2   Shutdown signal to FDC2114 2
  *        7   INTB1 Interrupt signal from FDC2114 1
  *        11  INTB2 Interrupt signal from FDC2114 2
- *        
- *        
- *  IMU (Adafruit BNO055):
- *      Pinouts
- *        31  RST   Reset signal to IMU
- *        30  INT   Interrupt from the IMU
  *      
  **********************************************************/
 
 #include <Wire.h>
 #include <bluefruit.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
-#include <utility/imumaths.h>
+#include <Adafruit_LSM9DS0.h>
 
 // Use these define statements to easily reconfigure the code
 // to test individual hardware components.
 #define USE_BLE       // Output data using the Feather's BLE modem.
 #define USE_CR        // Read flex sensors from the capacitive reader board.
-#define USE_IMU       // Read position data from the BNO055.
+#define USE_IMU       // Read position data from the LSM9DS0
 //#define USE_TOUCH     // Read finger contact data from the touch sensor board.
 
 // Number of words in the main data array.
@@ -156,7 +149,7 @@ uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 #ifdef USE_IMU
   // Instantiate the sensor object.
-  Adafruit_BNO055 bno = Adafruit_BNO055(55);
+  Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0(1000);
 #endif // USE_IMU
 
 #ifdef USE_BLE
@@ -213,7 +206,7 @@ void setup() {
   #endif // USE_BLE
 
   #ifdef USE_IMU
-    // Set up the BNO055
+    // Set up the LSM9DS0
     setupIMU();
   #endif // USE_IMU
 
@@ -313,17 +306,15 @@ void setup() {
 
 #ifdef USE_IMU
   void setupIMU() {
-    // Reset the BNO.
-    digitalWrite(7, HIGH);
-    delay(1);
-    digitalWrite(7, LOW);
-    delay(1);
-
     // Start up.
-    bno.begin();
+    lsm.begin();
     delay(1000);
-    bno.setExtCrystalUse(true);
 
+    //TODO verify that these are the correct ranges.
+    lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
+    lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
+    lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GUASS);
+    
     //TODO callibrate sensors.
   }
 #endif // USE_BLE
@@ -376,9 +367,10 @@ void loop() {
 
       #ifdef USE_IMU
         // Read data from the IMU.
-        imu::Quaternion quat = bno.getQuat();
-        imu::Vector<3> angular = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-        imu::Vector<3> linear = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+        sensor_event_t accel, mag, gyro, temp;
+        lsm.getEvent(&accel, &mag, &gyro, &temp);
+
+        //TODO Run Madgwick algorithm.
       #endif // USE_IMU
       
       #ifdef USE_BLE
