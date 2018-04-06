@@ -163,8 +163,6 @@ uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   BLECharacteristic dataEnable(ENUUID);
   #ifdef USE_IMU
     BLECharacteristic orientation(ORUUID);
-    BLECharacteristic angularVelocity(AVUUID);
-    BLECharacteristic linearAcceleration(LAUUID);
   #endif // USE_IMU
 
   // Enable state set by the phone.
@@ -278,18 +276,6 @@ void setup() {
       orientation.setFixedLen(ORIENT_LEN);
       orientation.setUserDescriptor("orientation");
       orientation.begin();
-
-      angularVelocity.setProperties(CHR_PROPS_READ);
-      angularVelocity.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-      angularVelocity.setFixedLen(ANGULAR_LEN);
-      angularVelocity.setUserDescriptor("angular vel");
-      angularVelocity.begin();
-
-      linearAcceleration.setProperties(CHR_PROPS_READ);
-      linearAcceleration.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-      linearAcceleration.setFixedLen(LINEAR_LEN);
-      linearAcceleration.setUserDescriptor("linear acc");
-      linearAcceleration.begin();
     #endif // USE_IMU
   
     // Data recording enable flag characteristic.
@@ -315,7 +301,7 @@ void setup() {
     //TODO verify that these are the correct ranges.
     lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
     lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
-    lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GUASS);
+    lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GAUSS);
     
     //TODO callibrate sensors.
 
@@ -372,7 +358,7 @@ void loop() {
 
       #ifdef USE_IMU
         // Read data from the IMU.
-        sensor_event_t accel, mag, gyro, temp;
+        sensors_event_t accel, mag, gyro, temp;
         lsm.getEvent(&accel, &mag, &gyro, &temp);
 
         // Run the Madgwick algorithm.
@@ -401,7 +387,10 @@ void loop() {
         #ifdef USE_IMU
           // Write IMU data to characteristic. 
           //TODO Use htonl to convert endianness??
-          float eulerAngles[3] = {fusionFilter.getPitch(), fusionFilter.getRoll() fusionFilter.getYaw()};
+          float eulerAngles[3];
+          eulerAngles[0] = fusionFilter.getPitch();
+          eulerAngles[1] = fusionFilter.getRoll(); 
+          eulerAngles[2] = fusionFilter.getYaw();
           orientation.write((uint8_t *)&eulerAngles, ORIENT_LEN);
         #endif // USE_IMU
       #ifdef USE_CR      

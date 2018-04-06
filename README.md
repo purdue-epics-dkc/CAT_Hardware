@@ -15,6 +15,8 @@
 	* Adafruit drivers required.
 	* Adafruit [Feather](https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/arduino-bsp-setup)/[Flora](https://learn.adafruit.com/getting-started-with-flora/windows-setup) drivers.
 	* Feather code depends on [SiLabs CP201X Driver](https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/arduino-board-setup).
+	* Sensor fusion depends on the [MadgwickAHRS](https://github.com/PaulStoffregen/MadgwickAHRS) library.
+		* To install in the Arduino IDE, navigate to your Arduino/libraries directory, clone the repository linked above, and restart the IDE.
 
 ### BLE Service Profile ###
 * BLE Serivce:
@@ -34,22 +36,11 @@
 		* data: 5 2-byte words in finger ID order (see bellow) written MSB first.
 
 	* Characteristic: Orientation
-		* Four Point Quaterion
+		* Compensated Euler angles from the IMU.
 		* UUID128: 09200cd5-e2cd-4210-b647-f022ec29fd47
-		* fixed len: 16
-		* data: 4 4-byte floating point numbers.
-
-	* Characteristic: AngularVelocity
-		* Three axis rotation speed (rad/s)
-		* UUID128: 09200cd6-e2cd-4210-b647-f022ec29fd47
 		* fixed len: 12
 		* data: 3 4-byte floating point numbers.
 
-	* Characteristic: LinearAcceleration
-		* Compensated for gravity. (m/s^2)
-		* UUID128: 09200cd7-e2cd-4210-b647-f022ec29fd47
-		* fixed len: 12
-		* data: 3 4-byte floating point numbers.
 
 ### Finger Flex Data Format ###
 * Each data frame for one hand is 10 bytes.
