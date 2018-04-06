@@ -28,22 +28,10 @@
  *          written MSB first.
  *          
  *  Characteristic: Orientation
- *    - Four Point Quaterion
+ *    - Compensated Euler angles (degrees / sec) from the IMU
  *    UUID128: 09200cd5-e2cd-4210-b647-f022ec29fd47
- *    fixed len: 
- *    data: 
- *  
- *  Characteristic: AngularVelocity
- *    - Three axis rotation speed (rad/s)
- *    UUID128: 09200cd6-e2cd-4210-b647-f022ec29fd47
- *    fixed len: 
- *    data: 
- *  
- *  Characteristic: LinearAcceleration
- *    - Compensated for gravity. (m/s^2)
- *    UUID128: 09200cd7-e2cd-4210-b647-f022ec29fd47
- *    fixed len: 
- *    data: 
+ *    fixed len: 12
+ *    data: 3 floating point values [pitch, roll, yaw]
  *    
  * 
  * Flex sensors (Custom PCB DeafSigner CRv0.2):
@@ -79,6 +67,7 @@
 #include <bluefruit.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM9DS0.h>
+#include <MadgwickAHRS.h>
 
 // Use these define statements to easily reconfigure the code
 // to test individual hardware components.
@@ -98,9 +87,7 @@
 #define PERIOD 10
 
 // Data lengths for IMU services.
-#define ORIENT_LEN 4 * sizeof(float)
-#define ANGULAR_LEN 3 * sizeof(float)
-#define LINEAR_LEN 3 * sizeof(float)
+#define ORIENT_LEN 3 * sizeof(float)
 
 #ifdef USE_BLE
   // Custom UUID: byte order is little endian.
@@ -150,6 +137,21 @@ uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #ifdef USE_IMU
   // Instantiate the sensor object.
   Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0(1000);
+
+  // Declare the Madgwick sensor fusion object.
+  Madgwick fusionFilter;
+
+  // Data structures needed to calibarate the Madgwick algorithm
+  // TODO Calculate appropriate values.
+  // raw x/y/z offsets.
+  float mag_offsets[3] = { 0.0, 0.0, 0.0 };
+
+  // soft iron compensation
+  float mag_softiron_matrix[3][3] = {{ 0.0, 0.0, 0.0 },
+                                     { 0.0, 0.0, 0.0 },
+                                     { 0.0, 0.0, 0.0 }};
+
+  float mag_field_strength = 0.0;
 #endif // USE_IMU
 
 #ifdef USE_BLE
@@ -306,7 +308,7 @@ void setup() {
 
 #ifdef USE_IMU
   void setupIMU() {
-    // Start up.
+    // Start up IMU.
     lsm.begin();
     delay(1000);
 
@@ -316,6 +318,9 @@ void setup() {
     lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GUASS);
     
     //TODO callibrate sensors.
+
+    // Sensor fusion expects 100 frames per second
+    fusionFilter.begin(100);
   }
 #endif // USE_BLE
 
@@ -370,16 +375,34 @@ void loop() {
         sensor_event_t accel, mag, gyro, temp;
         lsm.getEvent(&accel, &mag, &gyro, &temp);
 
-        //TODO Run Madgwick algorithm.
+        // Run the Madgwick algorithm.
+        // Based on https://github.com/adafruit/Adafruit_AHRS/blob/master/examples/ahrs_mahony/ahrs_mahony.ino
+        float x = mag.magnetic.x - mag_offsets[0];
+        float y = mag.magnetic.y - mag_offsets[1];
+        float z = mag.magnetic.z - mag_offsets[2];
+      
+        // Apply mag soft iron error compensation
+        float mx = x * mag_softiron_matrix[0][0] + y * mag_softiron_matrix[0][1] + z * mag_softiron_matrix[0][2];
+        float my = x * mag_softiron_matrix[1][0] + y * mag_softiron_matrix[1][1] + z * mag_softiron_matrix[1][2];
+        float mz = x * mag_softiron_matrix[2][0] + y * mag_softiron_matrix[2][1] + z * mag_softiron_matrix[2][2];
+      
+        // The filter library expects gyro data in degrees/s, but adafruit sensor
+        // uses rad/s so we need to convert them first (or adapt the filter lib
+        // where they are being converted)
+        float gx = gyro.gyro.x * 57.2958F;
+        float gy = gyro.gyro.y * 57.2958F;
+        float gz = gyro.gyro.z * 57.2958F;
+      
+        // Update the filter
+        fusionFilter.update(gx, gy, gz, accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, mx, my, mz);
       #endif // USE_IMU
       
       #ifdef USE_BLE
         #ifdef USE_IMU
-          // Write IMU data to characteristics. 
+          // Write IMU data to characteristic. 
           //TODO Use htonl to convert endianness??
-          orientation.write((uint8_t *)&quat, ORIENT_LEN);
-          angularVelocity.write((uint8_t *)&angular, ANGULAR_LEN);
-          linearAcceleration.write((uint8_t *)&linear, LINEAR_LEN);
+          float eulerAngles[3] = {fusionFilter.getPitch(), fusionFilter.getRoll() fusionFilter.getYaw()};
+          orientation.write((uint8_t *)&eulerAngles, ORIENT_LEN);
         #endif // USE_IMU
       #ifdef USE_CR      
         // Write the new flex frame to the characteristic and notify phone.
