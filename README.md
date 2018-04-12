@@ -30,10 +30,10 @@
 		* data: if 0, don't send data. Else send data. Only set by phone except for initialization.
 
 	* Characteristic: RightHand
-		* Has the flex data for 5 fingers of the right hand. Sends notifications to phone. Phone should read all data services upon recieving the RightHand notfiication.
+		* Has the flex data for 5 fingers of the right hand. Sends notifications to phone. Phone should read all data services upon receiving the RightHand notification.
 		* UUID128: 09200cd4-e2cd-4210-b647-f022ec29fd47
 		* fixed len: 10
-		* data: 5 2-byte words in finger ID order (see bellow) written MSB first.
+		* data: 5 2-byte words in finger ID order (see below) written MSB first.
 
 	* Characteristic: Orientation
 		* Compensated Euler angles from the IMU.
