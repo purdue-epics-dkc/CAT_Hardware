@@ -143,6 +143,7 @@ uint8_t data[DATA_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   // Data structures needed to calibarate the Madgwick algorithm
   // TODO Calculate appropriate values.
+  // https://learn.adafruit.com/ahrs-for-adafruits-9-dof-10-dof-breakout/magnetometer-calibration
   // raw x/y/z offsets.
   float mag_offsets[3] = { 0.0, 0.0, 0.0 };
 
