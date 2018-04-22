@@ -234,7 +234,7 @@ void setup() {
   
     // Set the MUX_CONFIG register to ready all channels.
     // Write 0xc20f to 0x1B. Turns on autoscan, selects correct channels.
-    configure(0x2B, 0x1B, 0xc2, 0xf);
+    configure(0x2B, 0x1B, 0xA2, 0xF);
     
     // Write 0b0 to the sleep mode enable register to exit power on sleep mode.
     // Configure any status registers before exiting sleep mode.
@@ -244,7 +244,7 @@ void setup() {
 	// Repeat for the second chip.
     configure(0x2A, 0x19, 0, 1);
 	// Write 00 to RR_SEQUENCE (MUX_CONFIG[14:13]) to only read two channels.
-    configure(0x2A, 0x1B, 0x82, 0xf);
+    configure(0x2A, 0x1B, 0x82, 0xF);
     configure(0x2A, 0x1A, 0x1C, 0x1);
   }
 #endif // USE_CR
