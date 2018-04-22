@@ -240,6 +240,12 @@ void setup() {
     // Configure any status registers before exiting sleep mode.
     // Writing 0x1c01 should preserve the other default values in that register (?).
     configure(0x2B, 0x1A, 0x1C, 0x1);
+
+	// Repeat for the second chip.
+    configure(0x2A, 0x19, 0, 1);
+	// Write 00 to RR_SEQUENCE (MUX_CONFIG[14:13]) to only read two channels.
+    configure(0x2A, 0x1B, 0x82, 0xf);
+    configure(0x2A, 0x1A, 0x1C, 0x1);
   }
 #endif // USE_CR
 
