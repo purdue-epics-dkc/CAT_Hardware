@@ -84,7 +84,7 @@
 #define DATA_LEN 10
 
 // Period of data refresh in ms.
-#define PERIOD 10
+#define PERIOD 5
 
 // Data lengths for IMU services.
 #define ORIENT_LEN 3 * sizeof(float)
@@ -319,7 +319,7 @@ void loop() {
     }
   #endif // USE_BLE
   
-  // Target a refresh rate of 100 Hz.
+  // Target a refresh rate of 200 Hz.
   currentTime = millis();
   #ifdef USE_BLE
   if (enableState != 0 && currentTime - oldTime >= PERIOD) {
