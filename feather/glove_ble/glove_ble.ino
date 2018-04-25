@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /***********************************************************
  * Joe Mynhier
  * 
@@ -74,7 +73,7 @@
 // to test individual hardware components.
 #define USE_BLE       // Output data using the Feather's BLE modem.
 #define USE_CR        // Read flex sensors from the capacitive reader board.
-#define USE_IMU       // Read position data from the LSM9DS0
+//#define USE_IMU       // Read position data from the LSM9DS0
 //#define USE_TOUCH     // Read finger contact data from the touch sensor board.
 
 // Number of words in the main data array.
